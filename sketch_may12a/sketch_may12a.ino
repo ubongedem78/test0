@@ -1,3 +1,5 @@
+#include <WiFiClient.h>
+#include <HTTPClient.h>
 const char* ssid = "Airtel_4G_SMARTBOX_CC3D";
 const char* password = "94D34117";
 const char* mdnsName = "stephenfyp"; 
@@ -1011,50 +1013,76 @@ static esp_err_t stream_handler(httpd_req_t *req){
     return res;
 }
 
-#include <HTTPClient.h>
+void sendAttendanceTask(void *pvParameters) {
+  const char* name = (const char*)pvParameters;
+  int id = *(int*)(pvParameters + strlen(name) + 1); // Extract ID from pvParameters
 
-void sendAttendanceRecord(const char* name, int id) {
-    // Construct the payload
-    String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
-    Serial.println(payload);
+  String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
 
-    // Send POST request to record attendance
-    HTTPClient http;
-    http.begin("http://test0-ugfq.onrender.com/record_attendance");
-    http.addHeader("Content-Type", "application/json");
+  HTTPClient http;
+  WiFiClient client;
 
-    // Send request and get a response
-    int httpResponseCode = http.POST(payload);
+  http.begin(client, "http://192.168.1.178:3000/record_attendance");
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(payload);
+  if (httpResponseCode > 0) {
     String response = http.getString();
 
     // Check if the response is a redirection (307)
     if (httpResponseCode == 307) {
-        String newUrl = http.header("Location");
-        Serial.print("Redirected to new URL: ");
-        Serial.println(newUrl);
-        // Resend the POST request to the new URL
-        http.begin(newUrl);
-        http.addHeader("Content-Type", "application/json");
-        httpResponseCode = http.POST(payload);
-        response = http.getString();
-    }
+      // Get the new location from the response headers
+      String newLocation = http.header("Location"); 
+      Serial.printf("Redirected to: %s\n", newLocation.c_str());
 
-    // Print HTTP response code and response body
+      // Resend the request to the new location (use the same payload and headers)
+      http.end();  // Close the original connection
+      http.begin(client, newLocation);
+      http.addHeader("Content-Type", "application/json");
+      httpResponseCode = http.POST(payload);
+      
+      if (httpResponseCode > 0) {
+        response = http.getString();
+      }
+    }
+  
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);
     Serial.print("Response body: ");
     Serial.println(response);
 
-    // Check for a successful POST request
     if (httpResponseCode > 0) {
-        Serial.printf("Attendance recorded successfully for ID: %d, Name: %s\n", id, name);
+      Serial.printf("Attendance recorded successfully for ID: %d, Name: %s\n", id, name);
     } else {
-        Serial.printf("Error recording attendance. HTTP error code: %d\n", httpResponseCode);
+      Serial.printf("Error recording attendance. HTTP error code: %d\n", httpResponseCode);
     }
+  } else {
+    Serial.printf("Error initiating attendance request. HTTP error code: %d\n", httpResponseCode);
+  }
 
-    http.end();
+  http.end(); // Close the connection after redirection handling
+
+  free(pvParameters); 
+  vTaskDelete(NULL);
 }
 
+
+void sendAttendanceRecord(const char* name, int id) {
+  // Allocate memory for the task parameters (name + id)
+  void* taskParams = malloc(strlen(name) + 1 + sizeof(int));
+  strcpy((char*)taskParams, name);  
+  *(int*)(taskParams + strlen(name) + 1) = id; 
+
+  // Create the task with the parameters
+  xTaskCreate(
+    sendAttendanceTask,    // Task function
+    "SendAttendance",     // Name of the task
+    4096,                 // Stack size (adjust if needed)
+    taskParams,             // Task parameters
+    1,                    // Priority
+    NULL                  // Task handle (not used here)
+  );
+}
 
 static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_boxes){
     dl_matrix3du_t *aligned_face = NULL;
@@ -1112,8 +1140,6 @@ static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_b
     dl_matrix3du_free(aligned_face);
     return matched_id;
 }
-
-
 
 
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char * str){
