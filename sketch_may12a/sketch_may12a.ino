@@ -1015,58 +1015,58 @@ static esp_err_t stream_handler(httpd_req_t *req){
 
 void sendAttendanceTask(void *pvParameters) {
   const char* name = (const char*)pvParameters;
-  int id = *(int*)(pvParameters + strlen(name) + 1); // Extract ID from pvParameters
+  int id = *(int*)(pvParameters + strlen(name) + 1); // Extract ID
 
-  if(strncmp(name, "Name", 4) != 0){
-      String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
+  static String lastPayload = "";
+  static unsigned long lastSentTime = 0; 
 
-  HTTPClient http;
-  WiFiClient client;
+  if (strncmp(name, "Name", 4) != 0) { // Check if name is valid
+    String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
 
-  http.begin(client, "http://192.168.1.178:3000/record_attendance");
-  http.addHeader("Content-Type", "application/json");
+    if (payload != lastPayload || (millis() - lastSentTime) > 60000) { // 60-second interval
+      lastPayload = payload;
+      lastSentTime = millis();
 
-  int httpResponseCode = http.POST(payload);
-  if (httpResponseCode > 0) {
-    String response = http.getString();
+      HTTPClient http;
+      WiFiClient client;
+      int httpResponseCode;
+      String newLocation;
 
-    // Check if the response is a redirection (307)
-    if (httpResponseCode == 307) {
-      // Get the new location from the response headers
-      String newLocation = http.header("Location"); 
-      Serial.printf("Redirected to: %s\n", newLocation.c_str());
+      do {
+        http.begin(client, "http://192.168.1.178:3000/record_attendance"); 
+        http.addHeader("Content-Type", "application/json");
 
-      // Resend the request to the new location (use the same payload and headers)
-      http.end();  // Close the original connection
-      http.begin(client, newLocation);
-      http.addHeader("Content-Type", "application/json");
-      httpResponseCode = http.POST(payload);
-      
-      if (httpResponseCode > 0) {
-        response = http.getString();
-      }
-    }
-  
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    Serial.print("Response body: ");
-    Serial.println(response);
+        httpResponseCode = http.POST(payload);
+        if (httpResponseCode > 0) {
+          String response = http.getString();
+          Serial.print("HTTP Response code: ");
+          Serial.println(httpResponseCode);
+          Serial.print("Response body: ");
+          Serial.println(response);
 
-    if (httpResponseCode > 0) {
-      Serial.printf("Attendance recorded successfully for ID: %d, Name: %s\n", id, name);
+          if (httpResponseCode == 307) {
+            newLocation = http.header("Location"); 
+            Serial.printf("Redirected to: %s\n", newLocation.c_str());
+          } else if (httpResponseCode == 200) { 
+            Serial.printf("Attendance recorded successfully for ID: %d, Name: %s\n", id, name);
+            break;
+          } else {
+            Serial.printf("Error recording attendance. HTTP error code: %d\n", httpResponseCode);
+            break;
+          }
+
+          http.end();
+        } else {
+          Serial.printf("Error initiating attendance request. HTTP error code: %d\n", httpResponseCode);
+          break;
+        }
+      } while (httpResponseCode == 307);
     } else {
-      Serial.printf("Error recording attendance. HTTP error code: %d\n", httpResponseCode);
-
+      Serial.println("Skipping duplicate attendance record within the interval.");
     }
-
-      http.end();
   } else {
-    Serial.printf("Error initiating attendance request. HTTP error code: %d\n", httpResponseCode);
-  }
-  }else {
     Serial.printf("Skipping attendance record for default name: %s\n", name);
   }
-
 
   free(pvParameters); 
   vTaskDelete(NULL);
