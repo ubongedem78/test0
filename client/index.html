@@ -1,0 +1,65 @@
+<span style="font-family: verdana, geneva, sans-serif"
+  ><!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Stephen FYP</title>
+      <link rel="stylesheet" href="./styles.css" />
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      />
+    </head>
+    <body>
+      <div class="container">
+        <nav>
+          <ul>
+            <li>
+              <a href="#" class="logo">
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/3/3d/Logo_Nile_University_Vert_-01.jpg"
+                />
+                <span class="nav-item">Admin</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <i class="fas fa-menorah"></i>
+                <span class="nav-item">Dashboard</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <section class="main">
+          <div class="main-top">
+            <h1>FACIAL RECOGNITION ATTENDANCE MANAGEMENT SYSTEM</h1>
+            <h3>Attendance for <span id="currentDate"></span></h3>
+
+            <i class="fas fa-user-cog"></i>
+            <button id="recordAttendanceBtn">Record New Attendance</button>
+          </div>
+
+          <section class="attendance">
+            <div class="attendance-list">
+              <h1>Class Attendance</h1>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>NAME</th>
+                    <th>STUDENT ID</th>
+                    <th>TIMESTAMP</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceData"></tbody>
+              </table>
+              <button id="downloadButton">Download Attendance</button>
+            </div>
+          </section>
+        </section>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <script src="./script.js"></script>
+    </body>
+  </html>
+</span>
