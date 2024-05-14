@@ -1017,7 +1017,8 @@ void sendAttendanceTask(void *pvParameters) {
   const char* name = (const char*)pvParameters;
   int id = *(int*)(pvParameters + strlen(name) + 1); // Extract ID from pvParameters
 
-  String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
+  if(strncmp(name, "Name", 4) != 0){
+      String payload = String("{\"name\":\"") + name + "\",\"id_number\":\"" + String(id) + "\"}";
 
   HTTPClient http;
   WiFiClient client;
@@ -1055,12 +1056,17 @@ void sendAttendanceTask(void *pvParameters) {
       Serial.printf("Attendance recorded successfully for ID: %d, Name: %s\n", id, name);
     } else {
       Serial.printf("Error recording attendance. HTTP error code: %d\n", httpResponseCode);
+
     }
+
+      http.end();
   } else {
     Serial.printf("Error initiating attendance request. HTTP error code: %d\n", httpResponseCode);
   }
+  }else {
+    Serial.printf("Skipping attendance record for default name: %s\n", name);
+  }
 
-  http.end(); // Close the connection after redirection handling
 
   free(pvParameters); 
   vTaskDelete(NULL);
@@ -1140,7 +1146,6 @@ static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_b
     dl_matrix3du_free(aligned_face);
     return matched_id;
 }
-
 
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char * str){
     fb_data_t fb;
