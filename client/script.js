@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const recordNewAttendance = document.getElementById("recordAttendanceBtn");
 
   // Define the base URL
-  const baseURL = "https://attendance-project-7hkr.onrender.com";
+  const baseURL = "https://test0-ugfq.onrender.com";
 
   function fetchAttendanceData() {
     axios
